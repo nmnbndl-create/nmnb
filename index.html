@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Digital Bouquet Maker</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts -> Serif & Cozys -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            serif: ['"Playfair Display"', 'serif'],
+            sans: ['"Lora"', 'serif'],
+          },
+          colors: {
+            paper: '#fdfbf7',
+            pastel: {
+              pink: '#fce4ec',
+              green: '#e8f5e9',
+              blue: '#e3f2fd',
+              yellow: '#fff9c4',
+              purple: '#f3e5f5',
+              peach: '#ffe0b2',
+            }
+          },
+          backgroundImage: {
+            'paper-texture': "url('https://www.transparenttextures.com/patterns/rice-paper-2.png')", 
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: theme('colors.paper');
+      background-image: theme('backgroundImage.paper-texture');
+      overflow-x: hidden;
+    }
+    
+    /* Hide scrollbar for cleaner UI */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent; 
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1; 
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8; 
+    }
+  </style>
+
+  <!-- React & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  
+  <!-- Babel -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Framer Motion -->
+  <script src="https://unpkg.com/framer-motion@10.16.16/dist/framer-motion.js"></script>
+</head>
+<body class="min-h-screen text-slate-800 font-sans selection:bg-pink-200 selection:text-pink-900">
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+    const { motion, AnimatePresence } = window.Motion;
+
+    // ----- Icons -----
+    const Icons = {
+      ArrowRight: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>,
+      Check: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>,
+      Copy: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>,
+      Gift: () => <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/></svg>,
+      Flower: ({ color = "currentColor", size = 24 }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 7.5a4.5 4.5 0 1 1 4.5 4.5h-9A4.5 4.5 0 1 1 12 7.5Z"/><path d="M12 16.5a4.5 4.5 0 1 0 4.5-4.5h-9a4.5 4.5 0 1 0 4.5 4.5Z"/><circle cx="12" cy="12" r="3" fill="#fbbf24" stroke="none"/></svg>,
+      X: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+    };
+
+    // ----- Data -----
+    const VASES = [
+      { id: 'v1', name: 'Classic Glass', color: 'bg-blue-100/40', border: 'border-blue-200/50', shape: 'rounded-b-2xl rounded-t-sm w-32 h-44', shine: true },
+      { id: 'v2', name: 'Ceramic Jug', color: 'bg-[#fce4ec]', border: 'border-[#f8bbd0]', shape: 'rounded-b-[40px] rounded-t-xl w-40 h-36', shine: false },
+      { id: 'v3', name: 'Mint Bowl', color: 'bg-[#e8f5e9]', border: 'border-[#c8e6c9]', shape: 'rounded-full w-48 h-32', shine: false },
+    ];
+
+    const FLOWERS = [
+      { id: 'f1', name: 'Pink Rose', hex: '#fbcfe8', stemHeight: 180, size: 56 }, 
+      { id: 'f2', name: 'Yellow Tulip', hex: '#fef08a', stemHeight: 200, size: 48 },
+      { id: 'f3', name: 'Lavender', hex: '#e9d5ff', stemHeight: 230, size: 40 },
+      { id: 'f4', name: 'Daisy', hex: '#ffffff', stemHeight: 160, size: 52 },
+      { id: 'f5', name: 'Bluebell', hex: '#bfdbfe', stemHeight: 150, size: 64 },
+      { id: 'f6', name: 'Peach Peony', hex: '#ffedd5', stemHeight: 170, size: 60 },
+      { id: 'f7', name: 'Red Poppy', hex: '#fca5a5', stemHeight: 190, size: 48 },
+      { id: 'f8', name: 'Green Fern', hex: '#bbf7d0', stemHeight: 210, size: 36 },
+      { id: 'f9', name: 'Lilac', hex: '#d8b4e2', stemHeight: 220, size: 50 },
+      { id: 'f10', name: 'Sunflower', hex: '#fcd34d', stemHeight: 240, size: 68 },
+    ];
+
+    // ----- Components -----
+    const FlowerSprite = ({ flower }) => {
+      return (
+        <div className="relative flex flex-col items-center justify-end" style={{ height: flower.stemHeight }}>
+          <div className="absolute top-0 z-10 drop-shadow-md pb-4">
+             <Icons.Flower color={flower.hex} size={flower.size} />
+          </div>
+          {/* Stem */}
+          <div className="bg-green-600/60 rounded-full" style={{ width: '4px', height: '100%' }}></div>
+        </div>
+      );
+    }
+
+    const PreviewBouquet = ({ vaseId, selectedFlowers }) => {
+      const vase = VASES.find(v => v.id === vaseId) || VASES[0];
+
+      return (
+        <div className="relative flex items-end justify-center h-[28rem] w-full mt-10">
+          
+          {/* Flowers container */}
+          <div className="absolute bottom-16 flex justify-center items-end h-72 w-72">
+            <AnimatePresence>
+              {selectedFlowers.map((flowerItem) => {
+                const f = FLOWERS.find(fl => fl.id === flowerItem.flowerId);
+                if(!f) return null;
+                
+                // Spread out flowers organically
+                // Using the unique id added during selection to maintain stable keys
+                const idx = flowerItem.orderIndex;
+                const total = selectedFlowers.length || 1;
+                
+                // create a fan shape
+                const offset = (idx - (total - 1)/2) * 20; 
+                const rotation = (idx - (total - 1)/2) * 12;
+                
+                return (
+                  <motion.div
+                    key={flowerItem.uid}
+                    initial={{ opacity: 0, y: 50, scale: 0.5 }}
+                    animate={{ opacity: 1, y: 0, scale: 1, x: offset, rotate: rotation }}
+                    exit={{ opacity: 0, scale: 0.5, y: -20 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    className="absolute bottom-0 origin-bottom"
+                    style={{ zIndex: 20 - Math.abs(idx - total/2) }}
+                  >
+                    <FlowerSprite flower={f} />
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
+          </div>
+
+          {/* Vase Front */}
+          <motion.div 
+            layoutId="vase"
+            className={`z-30 border-[3px] border-b-8 shadow-md ${vase.color} ${vase.border} ${vase.shape} transition-all duration-500 relative flex justify-center`}
+            style={{ 
+              backdropFilter: vase.shine ? 'blur(8px)' : 'none',
+            }}
+          >
+            {/* Gloss reflection for glass */}
+            {vase.shine && (
+               <div className="absolute top-2 left-3 w-4 h-[90%] bg-white/30 rounded-full blur-[2px]"></div>
+            )}
+            {!vase.shine && (
+               <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-tr from-black/5 to-transparent rounded-inherit"></div>
+            )}
+          </motion.div>
+        </div>
+      );
+    };
+
+    const Landing = ({ onStart }) => (
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="flex flex-col items-center text-center max-w-2xl mx-auto py-32 px-4"
+      >
+        <div className="mb-8 p-6 bg-pastel-pink/50 rounded-full text-pink-500 shadow-sm border border-pink-100">
+          <Icons.Gift />
+        </div>
+        <h1 className="text-6xl font-serif font-bold text-slate-800 mb-6 tracking-tight drop-shadow-sm">Digital Bouquet Maker</h1>
+        <p className="text-2xl text-slate-600/90 mb-12 font-sans leading-relaxed max-w-lg">
+          Craft a beautiful, lo-fi floral arrangement and share a cozy moment with someone special.
+        </p>
+        <button 
+          onClick={onStart}
+          className="group relative inline-flex items-center justify-center px-10 py-5 text-lg font-bold text-white bg-slate-800 rounded-full hover:bg-slate-700 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 overflow-hidden"
+        >
+          <span className="mr-3 font-serif italic tracking-wide">Build a Bouquet</span>
+          <Icons.ArrowRight />
+        </button>
+      </motion.div>
+    );
+
+    const Builder = ({ onFinish }) => {
+      const [step, setStep] = useState(1);
+      const [vase, setVase] = useState(VASES[0].id);
+      const [flowers, setFlowers] = useState([]);
+      const [note, setNote] = useState('');
+
+      const handleAddFlower = (id) => {
+        if (flowers.length < 12) {
+          setFlowers([...flowers, { flowerId: id, uid: Math.random().toString(36).substr(2, 9), orderIndex: flowers.length }]);
+        }
+      };
+
+      const handleRemoveFlower = (uidToRemove) => {
+        // Re-index remaining flowers so they fan out properly again
+        const remaining = flowers.filter(f => f.uid !== uidToRemove);
+        const reIndexed = remaining.map((f, i) => ({ ...f, orderIndex: i }));
+        setFlowers(reIndexed);
+      };
+
+      const handleNext = () => setStep(s => Math.min(s + 1, 3));
+      const handlePrev = () => setStep(s => Math.max(s - 1, 1));
+
+      return (
+        <motion.div 
+          initial={{ opacity: 0 }} 
+          animate={{ opacity: 1 }} 
+          className="max-w-6xl mx-auto py-12 px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 min-h-[85vh] items-center"
+        >
+          {/* Left: Preview Area */}
+          <div className="flex flex-col items-center justify-center bg-white/40 p-10 rounded-[2.5rem] shadow-sm border border-white/80 backdrop-blur-sm relative h-[600px] w-full">
+            <PreviewBouquet vaseId={vase} selectedFlowers={flowers} />
+            
+            <AnimatePresence>
+              {step === 3 && nodeHasContent(note) && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9, y: 20, rotate: -2 }}
+                  animate={{ opacity: 1, scale: 1, y: 0, rotate: -2 }}
+                  exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                  className="absolute bottom-10 left-10 right-10 bg-[#fffdf0] p-8 rounded-xl shadow-xl border border-amber-100/50 text-center"
+                >
+                  {/* Tape piece */}
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-12 h-6 bg-white/40 shadow-sm rotate-2"></div>
+                  <p className="font-serif text-xl text-slate-700 italic leading-relaxed whitespace-pre-wrap">{note}</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Right: Controls Area */}
+          <div className="flex flex-col h-full justify-center">
+            {/* Progress indicators */}
+            <div className="flex gap-3 mb-12 w-full max-w-md mx-auto">
+              {[1,2,3].map(i => (
+                <div key={i} className="flex-1 relative">
+                  <div className={`h-2 rounded-full transition-all duration-500 ${step >= i ? 'bg-slate-800' : 'bg-slate-200'}`} />
+                  <div className={`text-xs mt-2 text-center font-medium transition-colors ${step === i ? 'text-slate-800' : 'text-slate-400'}`}>
+                    {i === 1 ? 'Vase' : i === 2 ? 'Flowers' : 'Note'}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="min-h-[320px]">
+              <AnimatePresence mode="wait">
+                {/* SETP 1 */}
+                {step === 1 && (
+                  <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1">
+                    <h2 className="text-4xl font-serif mb-8 text-slate-800">Select a Vase</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                      {VASES.map(v => (
+                        <button 
+                          key={v.id} 
+                          onClick={() => setVase(v.id)}
+                          className={`p-6 rounded-3xl border-2 transition-all flex flex-col items-center bg-white/40 backdrop-blur-sm hover:-translate-y-1 ${vase === v.id ? 'border-slate-800 shadow-md transform scale-105' : 'border-white/60 hover:bg-white/60'}`}
+                        >
+                          <div className={`mt-2 ${v.color} ${v.border} border-2 ${v.shape} transform scale-50 origin-bottom`}></div>
+                          <span className="mt-6 font-medium text-slate-700 font-serif text-lg">{v.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* SETP 2 */}
+                {step === 2 && (
+                  <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1">
+                    <div className="flex justify-between items-end mb-6">
+                      <h2 className="text-4xl font-serif text-slate-800">Add Flowers</h2>
+                      <span className="text-sm font-medium px-3 py-1 bg-white/50 rounded-full text-slate-600 shadow-sm border border-white mb-2">
+                        {flowers.length} / 12
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-4 mb-6">
+                      {FLOWERS.map(f => (
+                        <button 
+                          key={f.id}
+                          onClick={() => handleAddFlower(f.id)}
+                          disabled={flowers.length >= 12}
+                          className="bg-white/50 border border-white/80 p-4 rounded-2xl hover:bg-white hover:scale-105 transition-all flex flex-col items-center shadow-sm disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed group relative"
+                        >
+                           <Icons.Flower color={f.hex} size={36} />
+                           
+                           {/* Tooltip on hover */}
+                           <div className="absolute -top-8 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                             {f.name}
+                           </div>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Selected flowers list */}
+                    <div className="min-h-[80px] p-4 bg-white/30 rounded-2xl border border-white/50 backdrop-blur-sm">
+                      <p className="text-xs font-semibold uppercase tracking-wider mb-3 text-slate-500">Your Selection (Click to remove)</p>
+                      <div className="flex flex-wrap gap-2">
+                        <AnimatePresence>
+                          {flowers.length === 0 && (
+                            <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-slate-400 italic">No flowers added yet. Click above to start building.</motion.span>
+                          )}
+                          {flowers.map((flItem) => {
+                            const f = FLOWERS.find(x => x.id === flItem.flowerId);
+                            if (!f) return null;
+                            return (
+                              <motion.button 
+                                key={flItem.uid} 
+                                initial={{ opacity: 0, scale: 0 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0 }}
+                                onClick={() => handleRemoveFlower(flItem.uid)} 
+                                className="group relative p-2 rounded-full bg-white shadow-sm border border-slate-100 hover:border-red-200 transition-colors"
+                              >
+                                <Icons.Flower color={f.hex} size={24} />
+                                <div className="absolute inset-0 bg-red-100/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                   <Icons.X />
+                                </div>
+                              </motion.button>
+                            )
+                          })}
+                        </AnimatePresence>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* SETP 3 */}
+                {step === 3 && (
+                  <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1">
+                     <h2 className="text-4xl font-serif mb-2 text-slate-800">Add a Note</h2>
+                     <p className="text-slate-500 mb-6">Write a warm message to go with your bouquet.</p>
+                     
+                     <div className="relative">
+                       <textarea
+                         value={note}
+                         onChange={(e) => setNote(e.target.value)}
+                         placeholder="Dear [Name],&#10;I made this for you..."
+                         className="w-full h-56 bg-white/70 backdrop-blur-sm border-2 border-white shadow-inner rounded-2xl p-6 font-serif text-lg focus:outline-none focus:border-slate-300 focus:ring-4 focus:ring-slate-100 resize-none transition-all"
+                         maxLength={200}
+                       />
+                       <div className="absolute bottom-4 right-4 text-sm font-medium text-slate-400 bg-white/80 px-2 py-1 rounded-md backdrop-blur-sm">
+                         {note.length}/200
+                       </div>
+                     </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Navigation buttons */}
+            <div className="flex justify-between items-center mt-12 pt-8 border-t border-slate-200/50">
+               {step > 1 ? (
+                 <button onClick={handlePrev} className="px-6 py-3 font-medium text-slate-500 hover:text-slate-800 transition-colors">Back</button>
+               ) : <div className="px-6 py-3 invisible">Back</div>}
+               
+               {step < 3 ? (
+                 <button onClick={handleNext} className="bg-slate-800 text-white px-8 py-4 rounded-full hover:bg-slate-700 transition-transform hover:scale-105 active:scale-95 flex items-center shadow-lg hover:shadow-xl font-bold">
+                   Continue <span className="ml-2"><Icons.ArrowRight /></span>
+                 </button>
+               ) : (
+                 <button 
+                   onClick={() => onFinish({ vase, flowers: flowers.map(f => f.flowerId), note })} 
+                   className="bg-[#fbcfe8] text-pink-900 border border-pink-200 px-8 py-4 rounded-full hover:bg-[#fce7f3] hover:border-pink-300 transition-all hover:scale-105 active:scale-95 flex items-center font-bold shadow-lg hover:shadow-xl font-serif tracking-wide"
+                 >
+                   Package Bouquet <span className="ml-2"><Icons.Check /></span>
+                 </button>
+               )}
+            </div>
+          </div>
+        </motion.div>
+      );
+    };
+
+    const ShareScreen = ({ data, onReset }) => {
+      const [copied, setCopied] = useState(false);
+      
+      const shareUrl = useMemo(() => {
+        // Encode state into base64
+        // data.flowers is just array of IDs
+        const payload = { v: data.vase, f: data.flowers, n: data.note };
+        const jsonStr = JSON.stringify(payload);
+        // Base64 encode
+        const b64 = btoa(encodeURIComponent(jsonStr));
+        const url = new URL(window.location.href);
+        url.search = `?b=${b64}`;
+        return url.toString();
+      }, [data]);
+
+      const handleCopy = () => {
+        navigator.clipboard.writeText(shareUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 3000);
+      };
+
+      return (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-2xl mx-auto py-32 px-4 text-center"
+        >
+          <div className="bg-white/80 backdrop-blur-md p-12 rounded-[3rem] shadow-xl border border-white relative overflow-hidden">
+            {/* Decorative background shapes */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-pastel-pink rounded-full blur-3xl opacity-40 -translate-y-1/2 translate-x-1/3"></div>
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-pastel-yellow rounded-full blur-3xl opacity-40 translate-y-1/2 -translate-x-1/3"></div>
+
+            <div className="relative z-10">
+              <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6 text-green-600 shadow-sm border border-green-200">
+                <Icons.Check />
+              </div>
+              <h2 className="text-5xl font-serif text-slate-800 mb-6 drop-shadow-sm">Your Bouquet is Ready!</h2>
+              <p className="text-lg text-slate-600 mb-10 font-sans max-w-md mx-auto">
+                Share this unique link with someone special so they can unwrap your custom arrangement and read your note.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row items-stretch gap-3 bg-slate-50/80 p-3 rounded-2xl mb-10 border border-slate-200 shadow-inner">
+                <input 
+                  type="text" 
+                  readOnly 
+                  value={shareUrl} 
+                  className="flex-1 bg-transparent px-4 py-2 text-sm text-slate-500 outline-none truncate font-mono" 
+                  onClick={e => e.target.select()}
+                />
+                <button 
+                  onClick={handleCopy}
+                  className={`px-6 py-3 rounded-xl font-bold flex items-center justify-center transition-all ${
+                    copied 
+                      ? 'bg-green-500 text-white shadow-md' 
+                      : 'bg-white text-slate-700 shadow-sm hover:shadow-md border border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  {copied ? <Icons.Check /> : <Icons.Copy />}
+                  <span className="ml-2">{copied ? 'Copied URL!' : 'Copy Link'}</span>
+                </button>
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-center gap-4">
+                <a
+                   href={shareUrl}
+                   className="inline-flex items-center justify-center px-8 py-4 bg-slate-800 text-white rounded-full font-bold hover:bg-slate-700 transition shadow-lg hover:shadow-xl"
+                >
+                   Preview Result <span className="ml-2"><Icons.ArrowRight /></span>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <button onClick={onReset} className="mt-12 text-slate-500 hover:text-slate-800 font-medium transition-colors underline underline-offset-4 decoration-2">
+             Create Another Bouquet
+          </button>
+        </motion.div>
+      );
+    }
+
+    const ViewPage = ({ encodedData }) => {
+      const [data, setData] = useState(null);
+      const [error, setError] = useState(false);
+
+      useEffect(() => {
+        try {
+          const decoded = decodeURIComponent(atob(encodedData));
+          const parsed = JSON.parse(decoded);
+          
+          // Re-map format {v, f, n} to {vase, flowers, note}
+          // Flowers need {flowerId, uid, orderIndex} mapping for rendering
+          const mappedFlowers = (parsed.f || []).map((fid, idx) => ({
+            flowerId: fid,
+            uid: `vf-${idx}`,
+            orderIndex: idx
+          }));
+
+          setData({
+            vase: parsed.v,
+            flowers: mappedFlowers,
+            note: parsed.n
+          });
+        } catch(e) {
+          console.error("Failed to decode bouquet data:", e);
+          setError(true);
+        }
+      }, [encodedData]);
+
+      if (error || (data && (!data.vase || !data.flowers))) {
+        return (
+          <div className="flex flex-col items-center justify-center min-h-screen">
+             <div className="bg-white/80 p-12 rounded-3xl shadow-xl text-center border border-white">
+               <h2 className="text-3xl font-serif mb-4 text-slate-800">Oops!</h2>
+               <p className="text-slate-600 mb-8">This bouquet has wilted or doesn't exist.</p>
+               <a href="?" className="bg-slate-800 text-white px-8 py-3 rounded-full font-bold hover:bg-slate-700 transition">Create Your Own</a>
+             </div>
+          </div>
+        );
+      }
+
+      if (!data) return (
+        <div className="min-h-screen flex items-center justify-center bg-paper">
+           <motion.div 
+             animate={{ rotate: 360 }} 
+             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+             className="text-pink-300"
+           >
+             <Icons.Flower size={48} color="#fbcfe8" />
+           </motion.div>
+        </div>
+      );
+
+      return (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1 }}
+          className="max-w-4xl mx-auto py-16 px-6 flex flex-col items-center"
+        >
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="mb-8 text-center"
+          >
+            <h1 className="text-4xl font-serif text-slate-800 italic">A bouquet for you...</h1>
+          </motion.div>
+
+          <motion.div
+            initial={{ scale: 0.8, y: 50, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 100, damping: 20, delay: 0.8 }}
+            className="w-full relative flex items-center justify-center bg-white/30 rounded-[3rem] p-10 border border-white/50 backdrop-blur-sm shadow-sm"
+          >
+            <PreviewBouquet vaseId={data.vase} selectedFlowers={data.flowers} />
+          </motion.div>
+
+          {data.note && (
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 2, duration: 0.8 }}
+              className="mt-16 bg-[#fffdf0] p-10 rounded-2xl shadow-xl border border-amber-100/50 max-w-2xl w-full text-center relative rotate-[-1deg]"
+            >
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-16 h-8 bg-white/60 shadow-sm rotate-3"></div>
+              <p className="font-serif text-2xl italic text-slate-700 leading-relaxed whitespace-pre-wrap">{data.note}</p>
+            </motion.div>
+          )}
+
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 3 }}
+            className="mt-20"
+          >
+            <a href="?" className="inline-flex items-center text-slate-500 hover:text-slate-800 font-bold transition-colors group">
+               <div className="bg-white p-3 rounded-full shadow-sm group-hover:shadow-md transition-shadow border border-slate-100 mr-4">
+                 <Icons.Gift />
+               </div>
+               <span className="underline underline-offset-4 decoration-2">Create your own bouquet</span>
+            </a>
+          </motion.div>
+        </motion.div>
+      );
+    }
+
+    // Helper to check if node exists
+    const nodeHasContent = (str) => typeof str === 'string' && str.trim().length > 0;
+
+    const App = () => {
+      const params = new URLSearchParams(window.location.search);
+      const bouquetData = params.get('b');
+
+      const [viewMode, setViewMode] = useState(bouquetData ? 'view' : 'landing');
+      const [finalData, setFinalData] = useState(null);
+
+      return (
+        <AnimatePresence mode="wait">
+           {viewMode === 'view' && <ViewPage key="view" encodedData={bouquetData} />}
+           {viewMode === 'landing' && <Landing key="landing" onStart={() => setViewMode('builder')} />}
+           {viewMode === 'builder' && <Builder key="builder" onFinish={(data) => { setFinalData(data); setViewMode('share'); }} />}
+           {viewMode === 'share' && <ShareScreen key="share" data={finalData} onReset={() => setViewMode('landing')} />}
+        </AnimatePresence>
+      );
+    }
+
+    // Render App
+    const container = document.getElementById('root');
+    const root = ReactDOM.createRoot(container);
+    root.render(<App />);
+  </script>
+</body>
+</html>
